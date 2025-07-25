@@ -1,50 +1,86 @@
 package com.pesapulse.userservice.service;
 
+import com.pesapulse.userservice.dto.LoginRequestDTO;
 import com.pesapulse.userservice.model.User;
 import com.pesapulse.userservice.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 /**
  * Service class containing the core business logic for user management.
- * It acts as an intermediary between the controller and the repository.
+ * It now also implements UserDetailsService to integrate with Spring Security's authentication mechanism.
  */
-@Service // Corrected annotation
-public class UserService {
+@Service
+public class UserService implements UserDetailsService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AuthenticationManager authenticationManager;
+    private final JwtService jwtService;
 
-    /**
-     * Constructor-based dependency injection.
-     * @param userRepository The repository for user data access.
-     * @param passwordEncoder The encoder for hashing passwords.
-     */
     @Autowired
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, AuthenticationManager authenticationManager, JwtService jwtService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.authenticationManager = authenticationManager;
+        this.jwtService = jwtService;
     }
 
     /**
      * Registers a new user in the system.
-     *
-     * @param user The user object containing registration details.
-     * @return The saved user object.
-     * @throws IllegalStateException if the email is already taken.
      */
     public User registerUser(User user) {
-        // 1. Check if email already exists
         if (userRepository.findByEmail(user.getEmail()).isPresent()) {
             throw new IllegalStateException("Email already taken: " + user.getEmail());
         }
-
-        // 2. Encode the password before saving - CRITICAL SECURITY STEP
-        String encodedPassword = passwordEncoder.encode(user.getPassword());
-        user.setPassword(encodedPassword);
-
-        // 3. Save the new user to the database
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
         return userRepository.save(user);
+    }
+
+    /**
+     * Authenticates a user and returns a JWT.
+     *
+     * @param loginRequest DTO containing login credentials.
+     * @return A User object (which now represents the authenticated principal).
+     */
+    public User loginUser(LoginRequestDTO loginRequest) {
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(loginRequest.getEmail(), loginRequest.getPassword())
+        );
+
+        // If authentication is successful, the principal will be our User object.
+        return (User) authentication.getPrincipal();
+    }
+
+    /**
+     * Generates a JWT for an authenticated user.
+     *
+     * @param user The authenticated user object.
+     * @return A JWT string.
+     */
+    public String generateJwtForUser(User user) {
+        return jwtService.generateToken(user);
+    }
+
+
+    /**
+     * Implemented method from UserDetailsService.
+     * This tells Spring Security how to load a user by their "username" (which is their email).
+     *
+     * @param username the username (email) identifying the user whose data is required.
+     * @return a fully populated user record (never null).
+     * @throws UsernameNotFoundException if the user could not be found.
+     */
+    @Override
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        return userRepository.findByEmail(username)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + username));
     }
 }
