@@ -4,6 +4,7 @@ import com.pesapulse.userservice.dto.LoginRequestDTO;
 import com.pesapulse.userservice.model.User;
 import com.pesapulse.userservice.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -25,8 +26,15 @@ public class UserService implements UserDetailsService {
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
 
+    /**
+     * Constructor-based dependency injection.
+     * The @Lazy annotation on AuthenticationManager is used to break a circular dependency.
+     */
     @Autowired
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, AuthenticationManager authenticationManager, JwtService jwtService) {
+    public UserService(UserRepository userRepository,
+                       PasswordEncoder passwordEncoder,
+                       @Lazy AuthenticationManager authenticationManager,
+                       JwtService jwtService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
@@ -45,25 +53,17 @@ public class UserService implements UserDetailsService {
     }
 
     /**
-     * Authenticates a user and returns a JWT.
-     *
-     * @param loginRequest DTO containing login credentials.
-     * @return A User object (which now represents the authenticated principal).
+     * Authenticates a user and returns a User object representing the principal.
      */
     public User loginUser(LoginRequestDTO loginRequest) {
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(loginRequest.getEmail(), loginRequest.getPassword())
         );
-
-        // If authentication is successful, the principal will be our User object.
         return (User) authentication.getPrincipal();
     }
 
     /**
      * Generates a JWT for an authenticated user.
-     *
-     * @param user The authenticated user object.
-     * @return A JWT string.
      */
     public String generateJwtForUser(User user) {
         return jwtService.generateToken(user);
@@ -72,11 +72,7 @@ public class UserService implements UserDetailsService {
 
     /**
      * Implemented method from UserDetailsService.
-     * This tells Spring Security how to load a user by their "username" (which is their email).
-     *
-     * @param username the username (email) identifying the user whose data is required.
-     * @return a fully populated user record (never null).
-     * @throws UsernameNotFoundException if the user could not be found.
+     * Tells Spring Security how to load a user by their email.
      */
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
