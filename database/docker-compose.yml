@@ -17,7 +17,7 @@ services:
     container_name: pesapulse-mongo
     environment:
       - MONGO_INITDB_ROOT_USERNAME=pesapulse
-      - MONGO_INITDB_ROOT_PASSWORD=sct212-0053-2021
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_PASSWORD}
     ports:
       - '27017:27017'
     volumes:
