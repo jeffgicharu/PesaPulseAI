@@ -8,9 +8,12 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class UserServiceApplication {
 
 public static void main(String[] args) {
-// Explicitly load the .env file at the very beginning of startup.
-// This ensures all environment variables are available before Spring starts building beans.
-Dotenv.load();
+// Explicitly load the .env file from the project's root directory.
+// We configure it to look one directory up ("../") from the service's execution path.
+Dotenv dotenv = Dotenv.configure()
+.directory("../") // <-- THE FIX IS HERE
+.ignoreIfMissing()
+.load();
 
 SpringApplication.run(UserServiceApplication.class, args);
 }
