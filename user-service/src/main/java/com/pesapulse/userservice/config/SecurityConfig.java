@@ -2,6 +2,8 @@ package com.pesapulse.userservice.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -18,9 +20,6 @@ public class SecurityConfig {
 
     /**
      * Creates a PasswordEncoder bean to be used for hashing passwords.
-     * We use BCrypt, which is the industry standard for password storage.
-     *
-     * @return An instance of BCryptPasswordEncoder.
      */
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -28,25 +27,29 @@ public class SecurityConfig {
     }
 
     /**
+     * Exposes the AuthenticationManager as a Bean to be used in our application.
+     */
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
+        return authenticationConfiguration.getAuthenticationManager();
+    }
+
+    /**
      * Configures the security filter chain that applies to all HTTP requests.
-     *
-     * @param http the HttpSecurity to configure
-     * @return the configured SecurityFilterChain
-     * @throws Exception if an error occurs
      */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                // Disable CSRF protection since we are building a stateless REST API
+                // Disable CSRF protection for stateless REST APIs
                 .csrf(csrf -> csrf.disable())
                 // Configure authorization rules
                 .authorizeHttpRequests(auth -> auth
-                        // Permit all requests to the /api/users/register endpoint
-                        .requestMatchers("/api/users/register").permitAll()
-                        // All other requests must be authenticated (we'll configure this later)
+                        // Permit all requests to the /register and /login endpoints
+                        .requestMatchers("/api/users/register", "/api/users/login").permitAll()
+                        // All other requests must be authenticated
                         .anyRequest().authenticated()
                 )
-                // Configure session management to be stateless
+                // Configure session management to be stateless, as we are using JWTs
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
         return http.build();
