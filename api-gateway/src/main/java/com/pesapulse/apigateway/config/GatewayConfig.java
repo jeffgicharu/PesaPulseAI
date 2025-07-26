@@ -15,16 +15,14 @@ public class GatewayConfig {
     public RouteLocator customRouteLocator(RouteLocatorBuilder builder) {
         return builder.routes()
                 // Route for the User Service
-                // If a request comes in with a path like /api/users/register...
+                // Requests to /api/users/** are now forwarded to the 'user-service' container.
                 .route("user-service", r -> r.path("/api/users/**")
-                        // ...forward it to the user-service running on port 8081.
-                        .uri("http://localhost:8081"))
+                        .uri("http://user-service:8081"))
 
                 // Route for the Transaction Service
-                // If a request comes in with a path like /api/transactions/upload...
+                // Requests to /api/transactions/** are now forwarded to the 'transaction-service' container.
                 .route("transaction-service", r -> r.path("/api/transactions/**")
-                        // ...forward it to the transaction-service running on port 8082.
-                        .uri("http://localhost:8082"))
+                        .uri("http://transaction-service:8082"))
                 
                 .build();
     }
