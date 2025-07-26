@@ -2,13 +2,14 @@ import pika
 import time
 import json
 import requests
-from app import insights_collection # Import the MongoDB collection from our Flask app
-from anomaly_detector import detect_anomalies # Import our analysis function
+from app import insights_collection
+from anomaly_detector import detect_anomalies
 
 # --- Service & RabbitMQ Connection Details ---
-RABBITMQ_HOST = 'localhost'
+# Use the service names as defined in docker-compose.yml
+RABBITMQ_HOST = 'rabbitmq'
+TRANSACTION_SERVICE_URL = 'http://transaction-service:8082/api/transactions'
 QUEUE_NAME = 'transaction_events'
-TRANSACTION_SERVICE_URL = 'http://localhost:8082/api/transactions'
 
 def main():
     """
@@ -41,25 +42,14 @@ def main():
 
             print(f"     - Processing for userId: {user_id}")
 
-            # --- Step 1: Fetch transaction data from the transaction-service ---
-            # Note: We need to add an endpoint to the transaction-service that allows
-            # fetching transactions by userId for internal service-to-service communication.
-            # For now, we assume an endpoint like /by-user/{userId} exists.
-            # A real implementation would also require passing an auth token.
-            
             # This is a placeholder for the actual API call logic.
-            # In a real scenario, you'd fetch the transactions for the specific user.
-            # For now, we'll simulate an empty list to test the flow.
-            # transactions = requests.get(f"{TRANSACTION_SERVICE_URL}/by-user/{user_id}").json()
             print("     - NOTE: Simulating transaction fetch. In a real system, an API call would be made here.")
-            transactions = [] # Placeholder
+            transactions = [] 
 
-            # --- Step 2: Run the anomaly detection logic ---
             print("     - Running anomaly detection...")
             new_insights = detect_anomalies(transactions, user_id)
             print(f"     - Found {len(new_insights)} new insights.")
 
-            # --- Step 3: Save new insights to MongoDB ---
             if new_insights and insights_collection is not None:
                 insights_collection.insert_many(new_insights)
                 print(f"     - Successfully saved {len(new_insights)} insights to the database.")
@@ -75,7 +65,6 @@ def main():
     channel.basic_consume(queue=QUEUE_NAME, on_message_callback=callback)
     print(' [*] RabbitMQ Consumer: Waiting for messages. To exit press CTRL+C')
     channel.start_consuming()
-
 
 if __name__ == '__main__':
     try:
