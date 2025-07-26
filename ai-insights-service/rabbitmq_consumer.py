@@ -1,66 +1,79 @@
 import pika
 import time
 import json
+import requests
+from app import insights_collection # Import the MongoDB collection from our Flask app
+from anomaly_detector import detect_anomalies # Import our analysis function
 
-# --- RabbitMQ Connection Details ---
+# --- Service & RabbitMQ Connection Details ---
 RABBITMQ_HOST = 'localhost'
 QUEUE_NAME = 'transaction_events'
+TRANSACTION_SERVICE_URL = 'http://localhost:8082/api/transactions'
 
 def main():
     """
     Main function to set up and start the RabbitMQ consumer.
-    It will attempt to connect and retry if the connection fails.
     """
     connection = None
     while not connection:
         try:
-            # Attempt to connect to RabbitMQ server
             connection = pika.BlockingConnection(pika.ConnectionParameters(host=RABBITMQ_HOST))
-            print("Successfully connected to RabbitMQ.")
+            print(" [x] RabbitMQ Consumer: Successfully connected to RabbitMQ.")
         except pika.exceptions.AMQPConnectionError:
-            print("RabbitMQ not available, retrying in 5 seconds...")
+            print(" [!] RabbitMQ Consumer: RabbitMQ not available, retrying in 5 seconds...")
             time.sleep(5)
 
     channel = connection.channel()
-
-    # Declare the queue. durable=True means the queue will survive a server restart.
-    # This is a good practice for ensuring no messages are lost.
     channel.queue_declare(queue=QUEUE_NAME, durable=True)
 
     def callback(ch, method, properties, body):
         """
         This function is called whenever a message is received from the queue.
         """
-        print(f" [x] Received message from queue '{QUEUE_NAME}'")
+        print(f" [x] RabbitMQ Consumer: Received message from queue '{QUEUE_NAME}'")
         
         try:
-            # Decode the message body from bytes to string, then parse as JSON
             message_data = json.loads(body.decode('utf-8'))
-            print(f"     Message content: {message_data}")
+            user_id = message_data.get('userId')
             
-            # --- TODO: Add processing logic here ---
-            # 1. Extract userId and batchId from message_data.
-            # 2. Make an API call to the transaction-service to get the transaction data.
-            # 3. Run the AI anomaly detection logic on the data.
-            # 4. Save the generated insights to the 'insights_db' in MongoDB.
+            if not user_id:
+                raise ValueError("Message is missing 'userId'")
+
+            print(f"     - Processing for userId: {user_id}")
+
+            # --- Step 1: Fetch transaction data from the transaction-service ---
+            # Note: We need to add an endpoint to the transaction-service that allows
+            # fetching transactions by userId for internal service-to-service communication.
+            # For now, we assume an endpoint like /by-user/{userId} exists.
+            # A real implementation would also require passing an auth token.
             
-            # Acknowledge that the message has been successfully processed.
-            # This removes the message from the queue.
+            # This is a placeholder for the actual API call logic.
+            # In a real scenario, you'd fetch the transactions for the specific user.
+            # For now, we'll simulate an empty list to test the flow.
+            # transactions = requests.get(f"{TRANSACTION_SERVICE_URL}/by-user/{user_id}").json()
+            print("     - NOTE: Simulating transaction fetch. In a real system, an API call would be made here.")
+            transactions = [] # Placeholder
+
+            # --- Step 2: Run the anomaly detection logic ---
+            print("     - Running anomaly detection...")
+            new_insights = detect_anomalies(transactions, user_id)
+            print(f"     - Found {len(new_insights)} new insights.")
+
+            # --- Step 3: Save new insights to MongoDB ---
+            if new_insights and insights_collection is not None:
+                insights_collection.insert_many(new_insights)
+                print(f"     - Successfully saved {len(new_insights)} insights to the database.")
+
             ch.basic_ack(delivery_tag=method.delivery_tag)
             print(" [x] Done. Message acknowledged.")
             
         except Exception as e:
-            print(f" [!] Error processing message: {e}")
-            # In a real system, you might want to reject the message and send it
-            # to a dead-letter queue for later inspection.
+            print(f" [!] RabbitMQ Consumer: Error processing message: {e}")
             ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
 
 
-    # Tell the channel to use our callback function for messages on the specified queue.
     channel.basic_consume(queue=QUEUE_NAME, on_message_callback=callback)
-
-    print(' [*] Waiting for messages. To exit press CTRL+C')
-    # Start listening for messages. This is a blocking call.
+    print(' [*] RabbitMQ Consumer: Waiting for messages. To exit press CTRL+C')
     channel.start_consuming()
 
 
@@ -69,5 +82,4 @@ if __name__ == '__main__':
         main()
     except KeyboardInterrupt:
         print('Interrupted')
-        # Gracefully exit
         exit(0)
