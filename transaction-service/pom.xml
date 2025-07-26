@@ -73,6 +73,17 @@
 		</dependency>
 <!-- ===================================================================== -->
 
+<!-- ===================================================================== -->
+<!-- NEW DEPENDENCY FOR RABBITMQ MESSAGING                                 -->
+<!-- This provides the RabbitTemplate and other tools for sending AMQP     -->
+<!-- messages.                                                             -->
+<!-- ===================================================================== -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-amqp</artifactId>
+		</dependency>
+<!-- ===================================================================== -->
+
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
