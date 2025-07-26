@@ -48,6 +48,19 @@
 			<artifactId>postgresql</artifactId>
 			<scope>runtime</scope>
 		</dependency>
+
+<!-- ===================================================================== -->
+<!-- NEW DEPENDENCY FOR CSV PARSING                                        -->
+<!-- Apache Commons CSV is a robust library for reading and writing CSV    -->
+<!-- files, which we will use to process M-PESA statements.                -->
+<!-- ===================================================================== -->
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-csv</artifactId>
+			<version>1.11.0</version>
+		</dependency>
+<!-- ===================================================================== -->
+
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
