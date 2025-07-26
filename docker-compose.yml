@@ -1,0 +1,98 @@
+version: '3.8'
+
+services:
+  # --- Infrastructure Services ---
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: pesapulse-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: transaction_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - pesapulse-net
+
+  mongo:
+    image: mongo:8.0
+    container_name: pesapulse-mongo
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - pesapulse-net
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: pesapulse-rabbitmq
+    ports:
+      - "5672:5672"   # Port for AMQP protocol
+      - "15672:15672" # Port for the management UI
+    networks:
+      - pesapulse-net
+
+  # --- Application Microservices ---
+
+  user-service:
+    build: ./user-service
+    container_name: user-service
+    depends_on:
+      - mongo
+    ports:
+      - "8081:8081"
+    env_file: .env
+    networks:
+      - pesapulse-net
+
+  transaction-service:
+    build: ./transaction-service
+    container_name: transaction-service
+    depends_on:
+      - postgres
+      - rabbitmq
+    ports:
+      - "8082:8082"
+    env_file: .env
+    networks:
+      - pesapulse-net
+
+  ai-insights-service:
+    build: ./ai-insights-service
+    container_name: ai-insights-service
+    depends_on:
+      - mongo
+      - rabbitmq
+    ports:
+      - "8083:8083"
+    env_file: .env
+    networks:
+      - pesapulse-net
+
+  api-gateway:
+    build: ./api-gateway
+    container_name: api-gateway
+    depends_on:
+      - user-service
+      - transaction-service
+    ports:
+      - "8080:8080"
+    networks:
+      - pesapulse-net
+
+# --- Volumes & Networks ---
+
+volumes:
+  postgres_data:
+  mongo_data:
+
+networks:
+  pesapulse-net:
+    driver: bridge
